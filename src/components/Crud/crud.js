@@ -406,6 +406,10 @@ function CRUD(options) {
           Vue.set(crudFrom, key, form[key])
         }
       }
+      // add by ghl 2020-10-04  页面重复添加信息时，下拉框的校验会存在，需要找工取消
+      if (crud.findVM('form').$refs['form']) {
+        crud.findVM('form').$refs['form'].clearValidate()
+      }
     },
     /**
      * 重置数据状态
@@ -511,17 +515,18 @@ function CRUD(options) {
           return
         }
         const lazyTreeNodeMap = table.store.states.lazyTreeNodeMap
-        const children = lazyTreeNodeMap[row.id]
-        row.children = children
-        children.forEach(ele => {
-          const id = crud.getDataId(ele)
-          if (that.dataStatus[id] === undefined) {
-            that.dataStatus[id] = {
-              delete: 0,
-              edit: 0
+        row.children = lazyTreeNodeMap[crud.getDataId(row)]
+        if (row.children) {
+          row.children.forEach(ele => {
+            const id = crud.getDataId(ele)
+            if (that.dataStatus[id] === undefined) {
+              that.dataStatus[id] = {
+                delete: 0,
+                edit: 0
+              }
             }
-          }
-        })
+          })
+        }
       })
     }
   }

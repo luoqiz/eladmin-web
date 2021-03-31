@@ -36,7 +36,7 @@
     <div v-if="$store.state.settings.showFooter" id="el-login-footer">
       <span v-html="$store.state.settings.footerTxt" />
       <span> ⋅ </span>
-      <a href="http://www.beian.miit.gov.cn" target="_blank">{{ $store.state.settings.caseNumber }}</a>
+      <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank">{{ $store.state.settings.caseNumber }}</a>
     </div>
   </div>
 </template>
@@ -46,6 +46,7 @@ import { encrypt } from '@/utils/rsaEncrypt'
 import Config from '@/settings'
 import { getCodeImg } from '@/api/login'
 import Cookies from 'js-cookie'
+import qs from 'qs'
 import Background from '@/assets/images/background.jpg'
 export default {
   name: 'Login',
@@ -73,7 +74,14 @@ export default {
   watch: {
     $route: {
       handler: function(route) {
-        this.redirect = route.query && route.query.redirect
+        const data = route.query
+        if (data && data.redirect) {
+          this.redirect = data.redirect
+          delete data.redirect
+          if (JSON.stringify(data) !== '{}') {
+            this.redirect = this.redirect + '&' + qs.stringify(data, { indices: false })
+          }
+        }
       },
       immediate: true
     }

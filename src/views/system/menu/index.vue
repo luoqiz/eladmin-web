@@ -59,7 +59,7 @@
           <el-input v-model="form.title" placeholder="按钮名称" style="width: 178px;" />
         </el-form-item>
         <el-form-item v-show="form.type.toString() !== '0'" label="权限标识" prop="permission">
-          <el-input v-model="form.permission" :disabled="form.iframe" placeholder="权限标识" style="width: 178px;" />
+          <el-input v-model="form.permission" :disabled="form.iframe.toString() === 'true'" placeholder="权限标识" style="width: 178px;" />
         </el-form-item>
         <el-form-item v-if="form.type.toString() !== '2'" label="路由地址" prop="path">
           <el-input v-model="form.path" placeholder="路由地址" style="width: 178px;" />
@@ -67,10 +67,10 @@
         <el-form-item label="菜单排序" prop="menuSort">
           <el-input-number v-model.number="form.menuSort" :min="0" :max="999" controls-position="right" style="width: 178px;" />
         </el-form-item>
-        <el-form-item v-show="!form.iframe && form.type.toString() === '1'" label="组件名称" prop="componentName">
+        <el-form-item v-show="form.iframe.toString() !== 'true' && form.type.toString() === '1'" label="组件名称" prop="componentName">
           <el-input v-model="form.componentName" style="width: 178px;" placeholder="匹配组件内Name字段" />
         </el-form-item>
-        <el-form-item v-show="!form.iframe && form.type.toString() === '1'" label="组件路径" prop="component">
+        <el-form-item v-show="form.iframe.toString() !== 'true' && form.type.toString() === '1'" label="组件路径" prop="component">
           <el-input v-model="form.component" style="width: 178px;" placeholder="组件路径" />
         </el-form-item>
         <el-form-item label="上级类目" prop="pid">
@@ -133,12 +133,8 @@
           <span v-else>是</span>
         </template>
       </el-table-column>
-      <el-table-column prop="createTime" label="创建日期" width="135px">
-        <template slot-scope="scope">
-          <span>{{ parseTime(scope.row.createTime) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column v-permission="['admin','menu:edit','menu:del']" label="操作" width="130px" align="center" fixed="right">
+      <el-table-column prop="createTime" label="创建日期" width="135px" />
+      <el-table-column v-if="checkPer(['admin','menu:edit','menu:del'])" label="操作" width="130px" align="center" fixed="right">
         <template slot-scope="scope">
           <udOperation
             :data="scope.row"

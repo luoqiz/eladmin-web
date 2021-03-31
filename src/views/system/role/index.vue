@@ -31,7 +31,7 @@
         </el-form-item>
         <el-form-item v-if="form.dataScope === '自定义'" label="数据权限" prop="depts">
           <treeselect
-            v-model="form.depts"
+            v-model="deptDatas"
             :load-options="loadDepts"
             :options="depts"
             multiple
@@ -61,12 +61,8 @@
             <el-table-column prop="dataScope" label="数据权限" />
             <el-table-column prop="level" label="角色级别" />
             <el-table-column :show-overflow-tooltip="true" prop="description" label="描述" />
-            <el-table-column :show-overflow-tooltip="true" width="135px" prop="createTime" label="创建日期">
-              <template slot-scope="scope">
-                <span>{{ parseTime(scope.row.createTime) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column v-permission="['admin','roles:edit','roles:del']" label="操作" width="130px" align="center" fixed="right">
+            <el-table-column :show-overflow-tooltip="true" width="135px" prop="createTime" label="创建日期" />
+            <el-table-column v-if="checkPer(['admin','roles:edit','roles:del'])" label="操作" width="130px" align="center" fixed="right">
               <template slot-scope="scope">
                 <udOperation
                   v-if="scope.row.level >= level"
@@ -120,7 +116,7 @@
 <script>
 import crudRoles from '@/api/system/role'
 import { getDepts, getDeptSuperior } from '@/api/system/dept'
-import { getMenusTree } from '@/api/system/menu'
+import { getMenusTree, getChild } from '@/api/system/menu'
 import CRUD, { presenter, header, form, crud } from '@crud/crud'
 import rrOperation from '@crud/RR.operation'
 import crudOperation from '@crud/CRUD.operation'
@@ -144,7 +140,7 @@ export default {
       defaultProps: { children: 'children', label: 'label', isLeaf: 'leaf' },
       dateScopes: ['全部', '本级', '自定义'], level: 3,
       currentId: 0, menuLoading: false, showButton: false,
-      menus: [], menuIds: [], depts: [],
+      menus: [], menuIds: [], depts: [], deptDatas: [], // 多选时使用
       permission: {
         add: ['admin', 'roles:add'],
         edit: ['admin', 'roles:edit'],
@@ -176,24 +172,25 @@ export default {
     [CRUD.HOOK.afterRefresh]() {
       this.$refs.menu.setCheckedKeys([])
     },
-    // 编辑前
+    // 新增前初始化部门信息
+    [CRUD.HOOK.beforeToAdd](crud, form) {
+      this.deptDatas = []
+      form.menus = null
+    },
+    // 编辑前初始化自定义数据权限的部门信息
     [CRUD.HOOK.beforeToEdit](crud, form) {
+      this.deptDatas = []
       if (form.dataScope === '自定义') {
-        if (form.id == null) {
-          this.getDepts()
-        } else {
-          this.getSupDepts(form.depts)
-        }
+        this.getSupDepts(form.depts)
       }
-      const depts = []
+      const _this = this
       form.depts.forEach(function(dept) {
-        depts.push(dept.id)
+        _this.deptDatas.push(dept.id)
       })
-      form.depts = depts
     },
     // 提交前做的操作
     [CRUD.HOOK.afterValidateCU](crud) {
-      if (crud.form.dataScope === '自定义' && crud.form.depts.length === 0) {
+      if (crud.form.dataScope === '自定义' && this.deptDatas.length === 0) {
         this.$message({
           message: '自定义数据权限不能为空',
           type: 'warning'
@@ -201,7 +198,7 @@ export default {
         return false
       } else if (crud.form.dataScope === '自定义') {
         const depts = []
-        crud.form.depts.forEach(function(data) {
+        this.deptDatas.forEach(function(data) {
           const dept = { id: data }
           depts.push(dept)
         })
@@ -210,19 +207,6 @@ export default {
         crud.form.depts = []
       }
       return true
-    },
-    [CRUD.HOOK.afterAddError](crud) {
-      this.afterErrorMethod(crud)
-    },
-    [CRUD.HOOK.afterEditError](crud) {
-      this.afterErrorMethod(crud)
-    },
-    afterErrorMethod(crud) {
-      const depts = []
-      crud.form.depts.forEach(function(dept) {
-        depts.push(dept.id)
-      })
-      crud.form.depts = depts
     },
     // 触发单选
     handleCurrentChange(val) {
@@ -241,13 +225,26 @@ export default {
       }
     },
     menuChange(menu) {
-      // 判断是否在 menuIds 中，如果存在则删除，否则添加
-      const index = this.menuIds.indexOf(menu.id)
-      if (index !== -1) {
-        this.menuIds.splice(index, 1)
-      } else {
-        this.menuIds.push(menu.id)
-      }
+      // 获取该节点的所有子节点，id 包含自身
+      getChild(menu.id).then(childIds => {
+        // 判断是否在 menuIds 中，如果存在则删除，否则添加
+        if (this.menuIds.indexOf(menu.id) !== -1) {
+          for (let i = 0; i < childIds.length; i++) {
+            const index = this.menuIds.indexOf(childIds[i])
+            if (index !== -1) {
+              this.menuIds.splice(index, 1)
+            }
+          }
+        } else {
+          for (let i = 0; i < childIds.length; i++) {
+            const index = this.menuIds.indexOf(childIds[i])
+            if (index === -1) {
+              this.menuIds.push(childIds[i])
+            }
+          }
+        }
+        this.$refs.menu.setCheckedKeys(this.menuIds)
+      })
     },
     // 保存菜单
     saveMenu() {
